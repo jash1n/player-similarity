@@ -204,20 +204,20 @@ with st.expander("📊 統合類似度マトリックスを見る"):
         final_similarity,
         height=600
     )
-with st.expander("🔥 総合類似度ヒートマップ"):
-    fig, ax = plt.subplots(figsize=(14, 8))
-
-    sns.heatmap(
-        final_similarity,
-        cmap="YlOrRd",
-        ax=ax,
-        cbar_kws={"label": "類似度"},
-        xticklabels=True,
-        yticklabels=True
-    )
-
-    ax.set_xlabel("海外選手")
-    ax.set_ylabel("国内選手")
-
-    st.pyplot(fig)
+# with st.expander("🔥 総合類似度ヒートマップ"):
+#     fig, ax = plt.subplots(figsize=(14, 8))
+#
+#     sns.heatmap(
+#         final_similarity,
+#         cmap="YlOrRd",
+#         ax=ax,
+#         cbar_kws={"label": "類似度"},
+#         xticklabels=True,
+#         yticklabels=True
+#     )
+#
+#     ax.set_xlabel("海外選手")
+#     ax.set_ylabel("国内選手")
+#
+#     st.pyplot(fig)
 
