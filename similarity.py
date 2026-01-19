@@ -33,7 +33,11 @@ HEATMAP_IMG_DIR = Path("data/ヒートマップ")
 # =====================
 @st.cache_data
 def load_matrix(path):
-    return pd.read_csv(path, index_col=0, encoding="utf-8")
+    df = pd.read_csv(path, index_col=0, encoding="utf-8-sig")
+    df.index = df.index.astype(str)
+    df.columns = df.columns.astype(str)
+    return df
+
 
 def minmax_normalize(df):
     min_val = df.min().min()
