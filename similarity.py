@@ -4,10 +4,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 from PIL import Image
-from urllib.parse import urlparse, parse_qs
-
-
-
 import numpy as np
 
 # =====================
@@ -38,7 +34,6 @@ def load_matrix(path):
     df.columns = df.columns.astype(str)
     return df
 
-
 def minmax_normalize(df):
     min_val = df.min().min()
     max_val = df.max().max()
@@ -55,7 +50,6 @@ youtube_links = load_youtube_links()
 
 def show_youtube(player_name):
     link = youtube_links.get(player_name)
-
     if link:
         st.video(link)
     else:
@@ -73,18 +67,37 @@ except Exception as e:
     st.stop()
 
 # =====================
-# 共通選手抽出
+# 空白・改行を削除して正規化
 # =====================
-domestic_players = sorted(
-    set(tfidf.index) & set(stats.index) & set(heatmap.index)
-)
-overseas_players = sorted(
-    set(tfidf.columns) & set(stats.columns) & set(heatmap.columns)
-)
+for df in [tfidf, stats, heatmap]:
+    df.index = df.index.str.strip()
+    df.columns = df.columns.str.strip()
 
-tfidf = tfidf.loc[domestic_players, overseas_players]
-stats = stats.loc[domestic_players, overseas_players]
-heatmap = heatmap.loc[domestic_players, overseas_players]
+# =====================
+# 不要選手を削除（ヒートマップに存在してはいけない選手）
+# =====================
+remove_players = ['Ben Mee', 'Ethan Pinnock']
+heatmap = heatmap.drop(remove_players, axis=0, errors='ignore')
+heatmap = heatmap.drop(remove_players, axis=1, errors='ignore')
+
+# =====================
+# 国内・海外選手リストを TF-IDF 基準で作成
+# =====================
+domestic_players = sorted(tfidf.index)
+overseas_players = sorted(tfidf.columns)
+
+# =====================
+# heatmap に存在しない選手を 0 で埋める
+# =====================
+heatmap = heatmap.reindex(index=domestic_players, columns=overseas_players, fill_value=0)
+
+# stats も念のため同様に補完
+stats = stats.reindex(index=domestic_players, columns=overseas_players, fill_value=0)
+
+# =====================
+# TF-IDF マトリクスは元のまま
+# =====================
+tfidf = tfidf.reindex(index=domestic_players, columns=overseas_players, fill_value=0)
 
 # =====================
 # 正規化
@@ -97,10 +110,9 @@ heatmap_n = minmax_normalize(heatmap)
 # 重み設定
 # =====================
 st.sidebar.header("⚖ 重み設定")
-
-w_tfidf = st.sidebar.slider("TF-IDF", 0.0, 1.0, 0.33, 0.01)
-w_stats = st.sidebar.slider("スタッツ", 0.0, 1.0, 0.33, 0.01)
-w_heat = st.sidebar.slider("ヒートマップ", 0.0, 1.0, 0.34, 0.01)
+w_tfidf = st.sidebar.slider("TF-IDF", 0.0, 1.0, 1.0, 0.01)
+w_stats = st.sidebar.slider("スタッツ", 0.0, 1.0, 1.0, 0.01)
+w_heat = st.sidebar.slider("ヒートマップ", 0.0, 1.0, 1.0, 0.01)
 
 total = w_tfidf + w_stats + w_heat
 w_tfidf /= total
@@ -120,7 +132,6 @@ final_similarity = (
 # 検索方向スイッチ
 # =====================
 st.sidebar.header("🔁 検索方向")
-
 mode = st.sidebar.radio(
     "検索方向を選択",
     ["国内 → 海外", "海外 → 国内"]
@@ -130,11 +141,10 @@ mode = st.sidebar.radio(
 # 類似選手検索
 # =====================
 st.subheader("類似選手検索")
-
 TOP_N = 7
 
 if mode == "国内 → 海外":
-    base_players = domestic_players
+    base_players = domestic_players[::-1]
     sim_matrix = final_similarity
     base_label = "国内選手"
     target_label = "海外選手"
@@ -162,22 +172,23 @@ st.dataframe(
     height=280,
     hide_index=True
 )
+
 with st.expander("🎥 選手ハイライト動画"):
     st.markdown(f"### 🎯 選択選手：{player}")
     show_youtube(player)
 
     st.markdown("### 🔍 類似選手")
-
     cols = st.columns(2)
     for i, p in enumerate(result[target_label]):
         with cols[i % 2]:
             st.markdown(f"**{p}**")
             show_youtube(p)
 
-
+# =====================
+# 選手ヒートマップ（画像表示）
+# =====================
 with st.expander("🗺 選手ヒートマップ（選択＋類似選手）"):
     st.markdown(f"### 🎯 選択選手：{player}")
-
     base_img = HEATMAP_IMG_DIR / f"{player}.png"
     if base_img.exists():
         st.image(base_img, width=350)
@@ -185,7 +196,6 @@ with st.expander("🗺 選手ヒートマップ（選択＋類似選手）"):
         st.warning(f"ヒートマップ画像が見つかりません: {player}")
 
     st.markdown("### 🔍 類似選手")
-
     cols = st.columns(4)
     for i, p in enumerate(result[target_label]):
         img_path = HEATMAP_IMG_DIR / f"{p}.png"
@@ -195,29 +205,12 @@ with st.expander("🗺 選手ヒートマップ（選択＋類似選手）"):
             else:
                 st.warning(p)
 
-
 # =====================
-# 類似度マトリックス表示
+# 統合類似度マトリックス表示
 # =====================
 with st.expander("📊 統合類似度マトリックスを見る"):
     st.dataframe(
         final_similarity,
         height=600
     )
-# with st.expander("🔥 総合類似度ヒートマップ"):
-#     fig, ax = plt.subplots(figsize=(14, 8))
-#
-#     sns.heatmap(
-#         final_similarity,
-#         cmap="YlOrRd",
-#         ax=ax,
-#         cbar_kws={"label": "類似度"},
-#         xticklabels=True,
-#         yticklabels=True
-#     )
-#
-#     ax.set_xlabel("海外選手")
-#     ax.set_ylabel("国内選手")
-#
-#     st.pyplot(fig)
 
