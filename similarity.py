@@ -5,6 +5,8 @@ import seaborn as sns
 from pathlib import Path
 from PIL import Image
 import numpy as np
+import unicodedata
+
 
 # =====================
 # ページ設定
@@ -55,6 +57,13 @@ def show_youtube(player_name):
     else:
         st.info(f"YouTube動画が登録されていません: {player_name}")
 
+def normalize_name(name):
+    return unicodedata.normalize("NFC", name)
+
+def normalize_name(name):
+    return unicodedata.normalize("NFC", name)
+
+
 # =====================
 # データ読み込み
 # =====================
@@ -66,12 +75,19 @@ except Exception as e:
     st.error(f"CSV読み込みエラー: {e}")
     st.stop()
 
+
+
 # =====================
 # 空白・改行を削除して正規化
 # =====================
 for df in [tfidf, stats, heatmap]:
     df.index = df.index.str.strip()
     df.columns = df.columns.str.strip()
+
+for df in [tfidf, stats, heatmap]:
+    df.index = df.index.map(normalize_name)
+    df.columns = df.columns.map(normalize_name)
+
 
 # =====================
 # 不要選手を削除（ヒートマップに存在してはいけない選手）
@@ -189,7 +205,7 @@ with st.expander("🎥 選手ハイライト動画"):
 # =====================
 with st.expander("🗺 選手ヒートマップ（選択＋類似選手）"):
     st.markdown(f"### 🎯 選択選手：{player}")
-    base_img = HEATMAP_IMG_DIR / f"{player}.png"
+    base_img = HEATMAP_IMG_DIR / f"{normalize_name(player)}.png"
     if base_img.exists():
         st.image(base_img, width=350)
     else:
@@ -198,7 +214,7 @@ with st.expander("🗺 選手ヒートマップ（選択＋類似選手）"):
     st.markdown("### 🔍 類似選手")
     cols = st.columns(4)
     for i, p in enumerate(result[target_label]):
-        img_path = HEATMAP_IMG_DIR / f"{p}.png"
+        img_path = HEATMAP_IMG_DIR / f"{normalize_name(p)}.png"
         with cols[i % 4]:
             if img_path.exists():
                 st.image(img_path, caption=p, width=250)
